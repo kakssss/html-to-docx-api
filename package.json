@@ -1,6 +1,6 @@
 {
   "type": "module",
   "dependencies": {
-    "html-docx-js": "^0.4.1"
+    "html-docx-js": "^0.3.1"
   }
 }
