@@ -1,34 +1,43 @@
 const express = require('express');
-const htmlToDocx = require('html-to-docx');
+const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const htmlDocx = require('html-docx-js');
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+const PORT = process.env.PORT || 3000;
 
-app.post('/generate-doc', async (req, res) => {
-  const { html, title } = req.body;
-  if (!html || !title) return res.status(400).json({ error: 'Missing HTML or title' });
+// استلام HTML كـ نص
+app.use(bodyParser.text({ type: 'text/html' }));
+
+// راوت التحويل
+app.post('/generate-docx', (req, res) => {
+  const html = req.body;
+
+  if (!html || html.length < 10) {
+    return res.status(400).send('HTML content is required');
+  }
 
   try {
-    const buffer = await htmlToDocx(html, null, {
-      table: { row: { cantSplit: true } },
-      footer: true,
-      pageNumber: true,
-    });
+    const docxBuffer = htmlDocx.asBlob(html);
+    const filename = `article_${Date.now()}.docx`;
+    const filepath = path.join(__dirname, filename);
 
-    const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.docx`;
-    const filePath = path.join(__dirname, fileName);
-    fs.writeFileSync(filePath, buffer);
+    fs.writeFileSync(filepath, docxBuffer);
 
-    res.download(filePath, fileName, () => {
-      fs.unlinkSync(filePath); // cleanup
+    // تحميل الملف
+    res.download(filepath, filename, err => {
+      fs.unlinkSync(filepath); // حذف الملف بعد التنزيل
+      if (err) console.error('Download error:', err);
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error:', err);
+    res.status(500).send('Server error while generating Word file');
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// تشغيل السيرفر
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
